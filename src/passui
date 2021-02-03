@@ -94,7 +94,7 @@ class PassUi(wx.Frame):
         return dirs
 
     def password_button_clicked(self, event, index):
-        self.show_password(index)
+        self.show_password_dialog(index)
 
     def path_button_clicked(self, event, path):
         self.curdir = path
@@ -102,7 +102,7 @@ class PassUi(wx.Frame):
         self.cur_passwords = self.get_pass_passwords()
         self.add_buttons()
 
-    def show_password(self, index):
+    def show_password_dialog(self, index):
         self.sizer.Clear(delete_windows=True)
 
         cpath = os.path.abspath(os.path.join(self.curdir, os.pardir))
@@ -116,11 +116,44 @@ class PassUi(wx.Frame):
 
         passpath = self.get_pass_path_from_index(index, "password")
         password = get_password_from_path(passpath)
-        btn = wx.Button(self.pnl, id=index + 1, label=password)
+        sbtn = wx.Button(self.pnl, id=index + 1, label = "Show/edit password")
+        cbtn = wx.Button(self.pnl, id=index + 2, label = "Copy password")
+        self.sizer.Add(sbtn, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.sizer.Add(cbtn, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.Bind(wx.EVT_BUTTON,
+                  lambda event, text = password: copy_to_clipboard(event, text),
+                  cbtn)
+        self.Bind(wx.EVT_BUTTON,
+                  lambda event, index = index: self.show_password(event, index),
+                  sbtn)
+        self.sizer.Layout()
+
+    def show_password(self, event, index):
+        self.sizer.Clear(delete_windows=True)
+
+        cpath = os.path.abspath(os.path.join(self.curdir, os.pardir))
+        label = '../'
+        btn = wx.Button(self.pnl, id=index, label=label)
         self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.Bind(
+            wx.EVT_BUTTON,
+            lambda event, path=cpath: self.path_button_clicked(event, path),
+            btn)
+
+        passpath = self.get_pass_path_from_index(index, "password")
+        password = get_password_from_path(passpath)
+        text = wx.TextCtrl(self.pnl, value = password) 
+        cbtn = wx.Button(self.pnl, id=index + 2, label = "Copy password")
+        sbtn = wx.Button(self.pnl, id=index + 3, label = "Save password")
+        self.sizer.Add(text, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.sizer.Add(cbtn, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.sizer.Add(sbtn, 0, wx.EXPAND)  # pylint: disable=no-member
         self.Bind(wx.EVT_BUTTON,
                   lambda event, text=password: copy_to_clipboard(event, text),
-                  btn)
+                  cbtn)
+        self.Bind(wx.EVT_BUTTON,
+                  lambda event, path=passpath, text = text: save_to_pass(event, path, text),
+                  sbtn)
         self.sizer.Layout()
 
 
@@ -136,6 +169,11 @@ def get_password_from_path(passpath):
     password = temp.split('\n')[0]
     return password
 
+def pass_pull():
+    result = run_command('/usr/bin/pass git pull')
+
+def pass_push():
+    result = run_command('/usr/bin/pass git pull')
 
 def run_command(command1, command2=None):
     """Run a command on system and capture result"""
@@ -153,6 +191,14 @@ def run_command(command1, command2=None):
         process1.stdout.close()
     return process1.communicate()
 
+def save_to_pass(event, path, text):
+    pass_pull()
+    password = text.GetLineText(0)
+    print(password)
+    command1 = '/bin/echo ' + password
+    command2 = '/usr/bin/pass insert -m ' + path
+    result = run_command(command1, command2)
+    pass_push()
 
 if __name__ == '__main__':
     # When this module is run (not imported) then create the app, the
