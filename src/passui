@@ -2,8 +2,12 @@
 """
 A mobile first interface for the standard unix password manager written in python
 """
-import wx
 import os
+import subprocess
+
+import wx
+import wx.lib.scrolledpanel as scrolled
+
 
 class PassUi(wx.Frame):
     """
@@ -11,41 +15,56 @@ class PassUi(wx.Frame):
     """
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
-        
-        # create a panel in the frame
-        #self.pnl = wx.Panel(self)
-        self.pnl = wx.ScrolledWindow(self, style = wx.VSCROLL)
+        # Find the top directory and set that to current dirtectory
         self.topdir = os.environ.get('PASSWORD_STORE_DIR')
         if not self.topdir:
             self.topdir = os.environ.get('HOME') + '/.password-store'
         self.curdir = self.topdir
+        # create a panel in the frame
+        self.pnl = scrolled.ScrolledPanel(self, -1, style=wx.VSCROLL)
+        self.pnl.SetupScrolling()
         # and create a sizer to manage the layout of child widgets
         self.sizer = wx.BoxSizer(wx.VERTICAL)
         self.pnl.SetSizer(self.sizer)
         self.cur_paths = self.get_pass_paths()
         self.cur_passwords = self.get_pass_passwords()
         self.add_buttons()
+
     def add_buttons(self):
         self.sizer.Clear(delete_windows=True)
+        if self.curdir != self.topdir:
+            index = -1
+            cpath = os.path.abspath(os.path.join(self.curdir, os.pardir))
+            label = '../'
+            btn = wx.Button(self.pnl, id=index, label=label)
+            self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
+            self.Bind(wx.EVT_BUTTON,
+                      lambda event, path=cpath: self.path_button_clicked(
+                          event, path),
+                      btn)
         index = 0
         for cpath in self.cur_paths:
-
-            if self.curdir != self.topdir:
-                label = '../'
-            else:
+            if cpath != self.curdir:
                 label = os.path.basename(os.path.normpath(cpath))
-            btn = wx.Button(self.pnl, id = index, label=label)
-            self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
-            print(self.get_pass_path_from_index(index))
-            index = index + 1
+                btn = wx.Button(self.pnl, id=index, label=label)
+                self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
+                self.Bind(wx.EVT_BUTTON,
+                          lambda event, path=cpath: self.path_button_clicked(
+                              event, path),
+                          btn)
+                index = index + 1
         for password in self.cur_passwords:
-            label = os.path.splitext(os.path.basename(os.path.normpath(password)))[0]
-            btn = wx.Button(self.pnl, id = index, label=label)
+            label = os.path.splitext(
+                os.path.basename(os.path.normpath(password)))[0]
+            btn = wx.Button(self.pnl, id=index, label=label)
             self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
-            print(self.get_pass_path_from_index(index,'password'))
+            self.Bind(wx.EVT_BUTTON,
+                      lambda event, index=index: self.password_button_clicked(
+                          event, index),
+                      btn)
             index = index + 1
-
         self.sizer.Layout()
+
     def get_pass_path_from_index(self, index, pathtype="path"):
         result = ""
         if pathtype == "password":
@@ -53,21 +72,86 @@ class PassUi(wx.Frame):
             result = self.cur_passwords[index]
         else:
             result = self.cur_paths[index]
-        return result.replace(self.topdir,'').replace('.gpg','')
+        return result.replace(self.topdir, '').replace('.gpg', '')
+
     def get_pass_passwords(self):
         passwords = []
         for mfile in os.listdir(self.curdir):
-            if mfile.endswith(".gpg"): # and os.path.isfile(mfile):
+            if mfile.endswith(".gpg"):  # and os.path.isfile(mfile):
                 passwords.append(os.path.join(self.curdir, mfile))
         return passwords
+
     def get_pass_paths(self):
         dirs = []
         if self.curdir != self.topdir:
             dirs.append(self.curdir)
         for cdir in os.listdir(self.curdir):
-            if os.path.isdir(os.path.join(self.curdir,cdir)) and cdir != ".git":
+            if os.path.isdir(os.path.join(self.curdir,
+                                          cdir)) and cdir != ".git":
                 dirs.append(os.path.join(self.curdir, cdir))
         return dirs
+
+    def password_button_clicked(self, event, index):
+        self.show_password(index)
+
+    def path_button_clicked(self, event, path):
+        self.curdir = path
+        self.cur_paths = self.get_pass_paths()
+        self.cur_passwords = self.get_pass_passwords()
+        self.add_buttons()
+
+    def show_password(self, index):
+        self.sizer.Clear(delete_windows=True)
+
+        cpath = os.path.abspath(os.path.join(self.curdir, os.pardir))
+        label = '../'
+        btn = wx.Button(self.pnl, id=index, label=label)
+        self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.Bind(
+            wx.EVT_BUTTON,
+            lambda event, path=cpath: self.path_button_clicked(event, path),
+            btn)
+
+        passpath = self.get_pass_path_from_index(index, "password")
+        password = get_password_from_path(passpath)
+        btn = wx.Button(self.pnl, id=index + 1, label=password)
+        self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.Bind(wx.EVT_BUTTON,
+                  lambda event, text=password: copy_to_clipboard(event, text),
+                  btn)
+        self.sizer.Layout()
+
+
+def copy_to_clipboard(event, text):
+    command1 = '/bin/echo ' + text
+    command2 = '/usr/bin/wl-copy'
+    return run_command(command1, command2)
+
+
+def get_password_from_path(passpath):
+    result = run_command("/usr/bin/pass show " + passpath)
+    temp = result[0].decode()
+    password = temp.split('\n')[0]
+    return password
+
+
+def run_command(command1, command2=None):
+    """Run a command on system and capture result"""
+    process1 = subprocess.Popen(command1.split(),
+                                shell=False,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+    # If there is a second command it is taken to be a pipline
+    if command2:
+        process2 = subprocess.Popen(command2.split(),
+                                    shell=False,
+                                    stdin=process1.stdout,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+        process1.stdout.close()
+    return process1.communicate()
+
+
 if __name__ == '__main__':
     # When this module is run (not imported) then create the app, the
     # frame, show it, and start the event loop.
