@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""
+A mobile first interface for the standard unix password manager written in python
+"""
+import wx
+import os
+
+class PassUi(wx.Frame):
+    """
+    The wx.Frame for passui
+    """
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        
+        # create a panel in the frame
+        #self.pnl = wx.Panel(self)
+        self.pnl = wx.ScrolledWindow(self, style = wx.VSCROLL)
+        self.topdir = os.environ.get('PASSWORD_STORE_DIR')
+        if not self.topdir:
+            self.topdir = os.environ.get('HOME') + '/.password-store'
+        self.curdir = self.topdir
+        # and create a sizer to manage the layout of child widgets
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.pnl.SetSizer(self.sizer)
+        self.cur_paths = self.get_pass_paths()
+        self.cur_passwords = self.get_pass_passwords()
+        self.add_buttons()
+    def add_buttons(self):
+        self.sizer.Clear(delete_windows=True)
+        index = 0
+        for cpath in self.cur_paths:
+
+            if self.curdir != self.topdir:
+                label = '../'
+            else:
+                label = os.path.basename(os.path.normpath(cpath))
+            btn = wx.Button(self.pnl, id = index, label=label)
+            self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
+            print(self.get_pass_path_from_index(index))
+            index = index + 1
+        for password in self.cur_passwords:
+            label = os.path.splitext(os.path.basename(os.path.normpath(password)))[0]
+            btn = wx.Button(self.pnl, id = index, label=label)
+            self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
+            print(self.get_pass_path_from_index(index,'password'))
+            index = index + 1
+
+        self.sizer.Layout()
+    def get_pass_path_from_index(self, index, pathtype="path"):
+        result = ""
+        if pathtype == "password":
+            index = index - len(self.cur_paths)
+            result = self.cur_passwords[index]
+        else:
+            result = self.cur_paths[index]
+        return result.replace(self.topdir,'').replace('.gpg','')
+    def get_pass_passwords(self):
+        passwords = []
+        for mfile in os.listdir(self.curdir):
+            if mfile.endswith(".gpg"): # and os.path.isfile(mfile):
+                passwords.append(os.path.join(self.curdir, mfile))
+        return passwords
+    def get_pass_paths(self):
+        dirs = []
+        if self.curdir != self.topdir:
+            dirs.append(self.curdir)
+        for cdir in os.listdir(self.curdir):
+            if os.path.isdir(os.path.join(self.curdir,cdir)) and cdir != ".git":
+                dirs.append(os.path.join(self.curdir, cdir))
+        return dirs
+if __name__ == '__main__':
+    # When this module is run (not imported) then create the app, the
+    # frame, show it, and start the event loop.
+    app = wx.App()
+    frm = PassUi(None, title='PassUi')
+    frm.Show()
+    app.MainLoop()
