@@ -79,6 +79,7 @@ class PassUi(wx.Frame):
         for mfile in os.listdir(self.curdir):
             if mfile.endswith(".gpg"):  # and os.path.isfile(mfile):
                 passwords.append(os.path.join(self.curdir, mfile))
+        passwords = sorted(passwords)
         return passwords
 
     def get_pass_paths(self):
@@ -89,6 +90,7 @@ class PassUi(wx.Frame):
             if os.path.isdir(os.path.join(self.curdir,
                                           cdir)) and cdir != ".git":
                 dirs.append(os.path.join(self.curdir, cdir))
+        dirs = sorted(dirs)
         return dirs
 
     def password_button_clicked(self, event, index):
