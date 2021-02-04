@@ -32,6 +32,7 @@ class PassUi(wx.Frame):
 
     def add_buttons(self):
         self.sizer.Clear(delete_windows=True)
+        self.add_push_pull()
         if self.curdir != self.topdir:
             index = -1
             cpath = os.path.abspath(os.path.join(self.curdir, os.pardir))
@@ -64,6 +65,15 @@ class PassUi(wx.Frame):
                       btn)
             index = index + 1
         self.sizer.Layout()
+
+    def add_push_pull(self):
+            pushbtn = wx.Button(self.pnl, label="Push to remote")
+            self.sizer.Add(pushbtn, 0, wx.EXPAND)  # pylint: disable=no-member
+            self.Bind(wx.EVT_BUTTON,lambda event: pass_push(event),pushbtn)
+            pullbtn = wx.Button(self.pnl, label="Pull from remote")
+            self.sizer.Add(pullbtn, 0, wx.EXPAND)  # pylint: disable=no-member
+            self.Bind(wx.EVT_BUTTON,lambda event: pass_pull(event),pullbtn)
+
 
     def get_pass_path_from_index(self, index, pathtype="path"):
         result = ""
@@ -104,6 +114,7 @@ class PassUi(wx.Frame):
 
     def show_password_dialog(self, index):
         self.sizer.Clear(delete_windows=True)
+        self.add_push_pull()
 
         cpath = os.path.abspath(os.path.join(self.curdir, os.pardir))
         label = '../'
@@ -130,6 +141,7 @@ class PassUi(wx.Frame):
 
     def show_password(self, event, index):
         self.sizer.Clear(delete_windows=True)
+        self.add_push_pull()
 
         cpath = os.path.abspath(os.path.join(self.curdir, os.pardir))
         label = '../'
@@ -169,10 +181,10 @@ def get_password_from_path(passpath):
     password = temp.split('\n')[0]
     return password
 
-def pass_pull():
+def pass_pull(event):
     result = run_command('/usr/bin/pass git pull')
 
-def pass_push():
+def pass_push(event):
     result = run_command('/usr/bin/pass git push')
 
 def run_command(command1, command2=None):
@@ -193,7 +205,6 @@ def run_command(command1, command2=None):
 
 def save_to_pass(event, path, text):
     password = text.GetLineText(0)
-    print(password)
     command1 = '/bin/echo ' + password
     command2 = '/usr/bin/pass insert -m ' + path
     result = run_command(command1, command2)
