@@ -64,6 +64,7 @@ class PassUi(wx.Frame):
                           event, index),
                       btn)
             index = index + 1
+        self.pnl.SetupScrolling()
         self.sizer.Layout()
 
     def add_push_pull(self):
@@ -137,6 +138,7 @@ class PassUi(wx.Frame):
         self.Bind(wx.EVT_BUTTON,
                   lambda event, index = index: self.show_password(event, index),
                   sbtn)
+        self.pnl.SetupScrolling()
         self.sizer.Layout()
 
     def show_password(self, event, index):
@@ -166,6 +168,7 @@ class PassUi(wx.Frame):
         self.Bind(wx.EVT_BUTTON,
                   lambda event, path=passpath, text = text: save_to_pass(event, path, text),
                   sbtn)
+        self.pnl.SetupScrolling()
         self.sizer.Layout()
 
 
