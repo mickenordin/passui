@@ -41,7 +41,7 @@ class PassUi(wx.Frame):
         index = 0
         for cpath in self.cur_paths:
             if cpath != self.curdir:
-                label = os.path.basename(os.path.normpath(cpath))
+                label =  '🗀 ' + os.path.basename(os.path.normpath(cpath))
                 btn = wx.Button(self.pnl, label=label)
                 self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
                 self.Bind(wx.EVT_BUTTON,
@@ -51,7 +51,7 @@ class PassUi(wx.Frame):
                 index = index + 1
         index = 0
         for password in self.cur_passwords:
-            label = os.path.splitext(
+            label = '🗝 ' + os.path.splitext(
                 os.path.basename(os.path.normpath(password)))[0]
             btn = wx.Button(self.pnl, label=label)
             self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
@@ -86,6 +86,20 @@ class PassUi(wx.Frame):
         else:
             self.add_buttons()
 
+    def delete_password(self, event, index):
+        path = self.get_pass_path_from_index(index, "password")
+        dlg = wx.MessageDialog(self.pnl, "Delete " + path + "?", "Are you sure?", style=wx.CANCEL|wx.CANCEL_DEFAULT|wx.OK)
+        dlg.SetOKCancelLabels("&Yes", "&Don't delete")
+        reply = dlg.ShowModal()
+        if reply == wx.ID_CANCEL:
+            return True
+        command1 = ['/usr/bin/pass', 'rm', '-f', path]
+        result = run_command(command1)
+        self.move_up()
+        self.cur_paths = self.get_pass_paths()
+        self.cur_passwords = self.get_pass_passwords()
+        self.back_button_clicked(event)
+
     def get_pass_path_from_index(self, index, pathtype="path"):
         result = ""
         if pathtype == "password":
@@ -114,7 +128,6 @@ class PassUi(wx.Frame):
         return dirs
 
     def make_back_button(self, index=None):
-        print(index)
         if index != None:
             label = self.get_pass_path_from_index(index, "password")
         else:
@@ -123,6 +136,14 @@ class PassUi(wx.Frame):
         font = btn.GetFont().MakeItalic().MakeBold()
         btn.SetFont(font)
         return btn
+
+    def move_up(self):
+        if self.curdir == self.topdir:
+            return True
+        if not os.path.isdir(self.curdir):
+            self.curdir = os.path.abspath(os.path.join(self.curdir, os.pardir))
+            self.move_up()
+        return True
 
     def password_button_clicked(self, event, index):
         self.show_password_dialog(index)
@@ -134,6 +155,65 @@ class PassUi(wx.Frame):
         self.cur_paths = self.get_pass_paths()
         self.cur_passwords = self.get_pass_passwords()
         self.add_buttons()
+
+    def save_to_pass(self, event, path, text, name = None):
+        if name != None:
+            path = name.GetLineText(0)
+            fullpath = self.topdir + '/' + path.lstrip('/') 
+            filename = fullpath + '.gpg'
+            print(fullpath)
+            if os.path.exists(fullpath) or os.path.exists(filename):
+                dlg = wx.MessageDialog(self.pnl,  "Path: " + path + " allready exists! Please update password path", "Error", style=wx.OK)
+                dlg.ShowModal()
+                reply = wx.ID_CANCEL
+            else:
+                dlg = wx.MessageDialog(self.pnl, "Save to " + path + "?", "Are you sure?", style=wx.CANCEL|wx.CANCEL_DEFAULT|wx.OK)
+                dlg.SetOKCancelLabels("&Yes", "&Don't save")
+                reply = dlg.ShowModal()
+            if reply == wx.ID_CANCEL:
+                return True
+        password = str()
+        for lineno in range(text.GetNumberOfLines()):
+            password += text.GetLineText(lineno)
+            password += '\n'
+
+        command1 = ['/bin/echo', password.rstrip("\n")]
+        command2 = ['/usr/bin/pass', 'insert', '-m', path]
+        result = run_command(command1, command2)
+        self.back_button_clicked(event)
+
+    def show_new_dialog(self, event):
+        self.sizer.Clear(delete_windows=True)
+        passpath = self.curdir.replace(self.topdir, '')
+        btn = self.make_back_button()
+        self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.Bind(
+            wx.EVT_BUTTON,
+            lambda event, path=self.curdir: self.path_button_clicked(event, path),
+            btn)
+
+        name_sizer = wx.BoxSizer(orient=wx.VERTICAL)  # pylint: disable=no-member
+        name_sizer.Add(wx.StaticText(self.pnl, -1, "Password path:"), 0, wx.EXPAND)  # pylint: disable=no-member
+        pw_sizer = wx.BoxSizer(orient=wx.VERTICAL)  # pylint: disable=no-member
+        pw_sizer.Add(wx.StaticText(self.pnl, -1, "Password:"), 0, wx.EXPAND)  # pylint: disable=no-member
+        name = wx.TextCtrl(self.pnl,
+                           value=passpath,
+                           style=wx.TE_DONTWRAP)
+        text = wx.TextCtrl(self.pnl,
+                           style=wx.TE_MULTILINE | wx.TE_DONTWRAP)
+        sbtn = wx.Button(self.pnl, label="Save password")
+        name_sizer.Add(name, 0, wx.EXPAND)  # pylint: disable=no-member
+        pw_sizer.Add(text, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.sizer.Add(name_sizer, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.sizer.Add(pw_sizer, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.sizer.Add(sbtn, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.Bind(wx.EVT_BUTTON,
+                  lambda event, path=passpath, mtext=text, mname=name: self.save_to_pass(
+                      event, path, mtext, mname),
+                  sbtn)
+        self.pnl.SetupScrolling()
+        self.sizer.Layout()
+        name.SetFocus()
 
     def show_password_dialog(self, index):
         self.sizer.Clear(delete_windows=True)
@@ -152,8 +232,10 @@ class PassUi(wx.Frame):
 
         sbtn = wx.Button(self.pnl, label="Show/edit password")
         cbtn = wx.Button(self.pnl, label="Copy password")
+        dbtn = wx.Button(self.pnl, label="Delete password")
         self.sizer.Add(sbtn, 0, wx.EXPAND)  # pylint: disable=no-member
         self.sizer.Add(cbtn, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.sizer.Add(dbtn, 0, wx.EXPAND)  # pylint: disable=no-member
         self.Bind(wx.EVT_BUTTON,
                   lambda event, text=password: copy_to_clipboard(event, text),
                   cbtn)
@@ -161,6 +243,10 @@ class PassUi(wx.Frame):
             wx.EVT_BUTTON,
             lambda event, mindex=index: self.show_password(event, mindex),
             sbtn)
+        self.Bind(
+            wx.EVT_BUTTON,
+            lambda event, mindex=index: self.delete_password(event, mindex),
+            dbtn)
         self.pnl.SetupScrolling()
         self.sizer.Layout()
 
@@ -170,7 +256,6 @@ class PassUi(wx.Frame):
         passpath = self.get_pass_path_from_index(index, "password")
         cpath = self.topdir + os.path.dirname(passpath)
         password = get_password_from_path(passpath)
-
         btn = self.make_back_button(index)
         self.sizer.Add(btn, 0, wx.EXPAND)  # pylint: disable=no-member
         self.Bind(
@@ -190,7 +275,7 @@ class PassUi(wx.Frame):
                   lambda event, text=password: copy_to_clipboard(event, text),
                   cbtn)
         self.Bind(wx.EVT_BUTTON,
-                  lambda event, path=passpath, text=text: save_to_pass(
+                  lambda event, path=passpath, text=text: self.save_to_pass(
                       event, path, text),
                   sbtn)
         self.pnl.SetupScrolling()
@@ -206,6 +291,14 @@ class PassUi(wx.Frame):
             wx.EVT_BUTTON,
             lambda event, index=index: self.back_button_clicked(event, index),
             btn)
+        nbtn = wx.Button(self.pnl, label="Add new password")
+        font = nbtn.GetFont().MakeBold()
+        nbtn.SetFont(font)
+        self.sizer.Add(nbtn, 0, wx.EXPAND)  # pylint: disable=no-member
+        self.Bind(
+            wx.EVT_BUTTON,
+            lambda event: self.show_new_dialog(event),
+            nbtn)
         self.add_push_pull()
         self.pnl.SetupScrolling()
         self.sizer.Layout()
@@ -221,7 +314,6 @@ def copy_to_clipboard(event, text):
 
 def get_password_from_path(passpath):
     result = run_command(['/usr/bin/pass', 'show', passpath])
-    print(passpath)
     password = result[0].decode()
     return password
 
@@ -251,15 +343,6 @@ def run_command(command1, command2=None):
     return process1.communicate()
 
 
-def save_to_pass(event, path, text):
-    password = str()
-    for lineno in range(text.GetNumberOfLines()):
-        password += text.GetLineText(lineno)
-        password += '\n'
-
-    command1 = ['/bin/echo', password.rstrip("\n")]
-    command2 = ['/usr/bin/pass', 'insert', '-m', path]
-    result = run_command(command1, command2)
 
 
 if __name__ == '__main__':
