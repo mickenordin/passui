@@ -119,7 +119,7 @@ class PassUi(wx.Frame):
             label = self.get_pass_path_from_index(index, "password")
         else:
             label = self.curdir.replace(self.topdir, '')
-        btn = wx.Button(self.pnl, label=label)
+        btn = wx.Button(self.pnl, label=label + '⤴')
         font = btn.GetFont().MakeItalic().MakeBold()
         btn.SetFont(font)
         return btn
