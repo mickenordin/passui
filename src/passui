@@ -173,7 +173,7 @@ def pass_pull():
     result = run_command('/usr/bin/pass git pull')
 
 def pass_push():
-    result = run_command('/usr/bin/pass git pull')
+    result = run_command('/usr/bin/pass git push')
 
 def run_command(command1, command2=None):
     """Run a command on system and capture result"""
@@ -192,13 +192,11 @@ def run_command(command1, command2=None):
     return process1.communicate()
 
 def save_to_pass(event, path, text):
-    pass_pull()
     password = text.GetLineText(0)
     print(password)
     command1 = '/bin/echo ' + password
     command2 = '/usr/bin/pass insert -m ' + path
     result = run_command(command1, command2)
-    pass_push()
 
 if __name__ == '__main__':
     # When this module is run (not imported) then create the app, the
