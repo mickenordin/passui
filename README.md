@@ -24,3 +24,11 @@ The installer *should* theoretically work on all debian/mobian/ubuntu,arch/manja
 
 ## Usage
 Please make sure you [properly set up pass](https://git.zx2c4.com/password-store/about/#EXTENDED%20GIT%20EXAMPLE) and [gnupg](https://www.gnupg.org/gph/en/manual/c235.html#AEN243) first, if you use git for password storage, make sure to add a ssh-key so that you can push/pull without the need for entering a password.
+
+## Screenshots
+![Main dialog](https://raw.githubusercontent.com/mickenordin/passui/main/screenshots/first.png)
+![Tools dialog](https://raw.githubusercontent.com/mickenordin/passui/main/screenshots/second.png)
+![New password](https://raw.githubusercontent.com/mickenordin/passui/main/screenshots/third.png)
+![Show/edit dialog](https://raw.githubusercontent.com/mickenordin/passui/main/screenshots/fourth.png)
+![Delete](https://raw.githubusercontent.com/mickenordin/passui/main/screenshots/fifth.png)
+
