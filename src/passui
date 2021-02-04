@@ -157,11 +157,11 @@ class PassUi(wx.Frame):
         self.add_buttons()
 
     def save_to_pass(self, event, path, text, name = None):
+        fullpath = os.path.dirname(self.topdir + '/' + path.lstrip('/'))
         if name != None:
             path = name.GetLineText(0)
-            fullpath = self.topdir + '/' + path.lstrip('/') 
+            fullpath = os.path.dirname(self.topdir + '/' + path.lstrip('/'))
             filename = fullpath + '.gpg'
-            print(fullpath)
             if os.path.exists(fullpath) or os.path.exists(filename):
                 dlg = wx.MessageDialog(self.pnl,  "Path: " + path + " allready exists! Please update password path", "Error", style=wx.OK)
                 dlg.ShowModal()
@@ -180,6 +180,8 @@ class PassUi(wx.Frame):
         command1 = ['/bin/echo', password.rstrip("\n")]
         command2 = ['/usr/bin/pass', 'insert', '-m', path]
         result = run_command(command1, command2)
+        self.cur_paths = sorted([fullpath] + self.cur_paths)
+        self.cur_passwords = self.get_pass_passwords()
         self.back_button_clicked(event)
 
     def show_new_dialog(self, event):
